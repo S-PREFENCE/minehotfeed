@@ -1,0 +1,21 @@
+name = "hotfeed-backend"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# D1 数据库绑定
+[[d1_databases]]
+binding = "DB"
+database_name = "hotfeed-db"
+database_id = "<你的D1数据库ID>"
+
+# Cron 定时任务：每 10 分钟执行一次
+[triggers]
+crons = ["*/10 * * * *"]
+
+# 构建配置
+[build]
+command = ""
+
+# 兼容性
+[compatibility_flags]
+nodejs_compat = true
