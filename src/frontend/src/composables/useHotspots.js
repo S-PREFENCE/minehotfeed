@@ -2,8 +2,8 @@ import { ref, onMounted, onUnmounted } from 'vue'
 
 const POLL_INTERVAL = 10 * 60 * 1000 // 10 minutes
 
-// API 地址：同域部署，使用相对路径
-const API_BASE = '/api'
+// API 地址：优先使用环境变量（生产部署），否则同域相对路径（本地开发）
+const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
 export function useHotspots() {
   const domestic = ref([])

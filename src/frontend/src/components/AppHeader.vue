@@ -17,7 +17,8 @@ async function fetchHistory() {
   if (historyData.value) return
   loadingHistory.value = true
   try {
-    const res = await fetch('/api/v1/history?days=3')
+    const apiBase = import.meta.env.VITE_API_BASE || '/api'
+    const res = await fetch(`${apiBase}/v1/history?days=3`)
     const json = await res.json()
     if (json.code === 0) {
       historyData.value = json.data
