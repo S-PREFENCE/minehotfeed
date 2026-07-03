@@ -12,7 +12,7 @@ import {
   getStatus,
   updateStatus,
 } from "./database";
-import type { Env, DedupRow, HistoryRow } from "./database";
+import type { Env, HistoryRow } from "./database";
 
 // ============ Cron 定时任务（每10分钟） ============
 
@@ -65,7 +65,7 @@ async function handleCron(env: Env): Promise<Response> {
     // 保存历史 Top15
     const domRows = (await queryHotspots(env.DB, { limit: 15, region: "domestic" })).domestic;
     const intlRows = (await queryHotspots(env.DB, { limit: 15, region: "international" })).international;
-    await saveHistory(env.DB, domRows as DedupRow[], intlRows as DedupRow[]);
+    await saveHistory(env.DB, domRows, intlRows);
 
     // 更新状态
     await updateStatus(env.DB, failed);
@@ -92,7 +92,7 @@ async function handleCron(env: Env): Promise<Response> {
 
 export default {
   // Cron Trigger
-  async scheduled(event: ScheduledEvent, env: Env): Promise<void> {
+  async scheduled(_event: ScheduledEvent, env: Env): Promise<void> {
     await handleCron(env);
   },
 
@@ -149,7 +149,7 @@ export default {
                 total_domestic: domestic.length,
                 total_international: international.length,
                 last_refresh: status.last_refresh || "",
-                failed_platforms: [],
+                failed_platforms: status.failed_platforms || [],
               },
             },
           }),

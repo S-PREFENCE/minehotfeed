@@ -30,6 +30,7 @@ export interface HistoryRow {
 }
 
 // ============ 初始化表结构（首次部署时执行）============
+// ⚠️ DDL 语句必须逐条执行，db.batch() 不支持 CREATE/ALTER/DROP
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS dedup_hotspots (
@@ -73,7 +74,11 @@ CREATE TABLE IF NOT EXISTS fetch_status (
 `;
 
 export async function initDB(db: D1Database): Promise<void> {
-  await db.batch(SCHEMA_SQL.split(";").filter((s) => s.trim()).map((s) => db.prepare(s.trim())));
+  // 🔴 修复：D1 的 batch() 不支持 DDL，必须逐条 prepare().run()
+  const statements = SCHEMA_SQL.split(";").filter((s) => s.trim());
+  for (const sql of statements) {
+    await db.prepare(sql.trim()).run();
+  }
 }
 
 // ============ 存储去重结果 ============
@@ -86,7 +91,7 @@ export async function saveDedup(
   }>,
   region: string
 ): Promise<void> {
-  // 先清空该区域的旧数据
+  // 先清空该区域的旧数据（参数化查询防注入）
   await db.prepare("DELETE FROM dedup_hotspots WHERE region = ?").bind(region).run();
 
   // 批量插入新数据
@@ -117,9 +122,10 @@ export async function queryHotspots(
   const domestic: DedupRow[] = [];
   const international: DedupRow[] = [];
 
+  // 🔴 修复：region 改为参数化查询，消除 SQL 拼接注入风险
   const buildWhere = (region: string) => {
-    const conds: string[] = [`region='${region}'`];
-    const params: unknown[] = [];
+    const conds: string[] = ["region = ?"];
+    const params: unknown[] = [region];
     if (options?.category) { conds.push("category = ?"); params.push(options.category); }
     if (options?.keyword) { conds.push("title LIKE ?"); params.push(`%${options.keyword}%`); }
     return { where: conds.join(" AND "), params };
@@ -145,18 +151,31 @@ export async function queryHotspots(
 }
 
 // ============ 保存历史 Top15 ============
+// 🟢 改进：统一使用 DedupResult 风格（camelCase），消除类型强转
 
 export async function saveHistory(
   db: D1Database,
-  domesticResults: DedupRow[],
-  internationalResults: DedupRow[]
+  domesticResults: Array<{
+    id: string; title: string; subtitle: string; unifiedHeat: number;
+    category: string; trend: string; platform: string; url: string;
+  }>,
+  internationalResults: Array<{
+    id: string; title: string; subtitle: string; unifiedHeat: number;
+    category: string; trend: string; platform: string; url: string;
+  }>
 ): Promise<void> {
   const today = new Date().toISOString().slice(0, 10);
 
   // 删除今天的旧记录
   await db.prepare("DELETE FROM history_hotspots WHERE date = ?").bind(today).run();
 
-  const saveList = async (list: DedupRow[], region: string) => {
+  const saveList = async (
+    list: Array<{
+      id: string; title: string; subtitle: string; unifiedHeat: number;
+      category: string; trend: string; platform: string; url: string;
+    }>,
+    region: string
+  ) => {
     const top15 = list.slice(0, 15);
     if (!top15.length) return;
     const stmt = db.prepare(
@@ -214,13 +233,26 @@ export async function queryHistory(
 
 // ============ 获取/更新状态 ============
 
-export async function getStatus(db: D1Database): Promise<Record<string, unknown>> {
+export interface FetchStatus {
+  last_refresh: string;
+  failed_platforms: string[];
+}
+
+export async function getStatus(db: D1Database): Promise<FetchStatus> {
+  // 🟡 修复：同时返回失败平台信息，不再硬编码空数组
   const row = await db.prepare("SELECT * FROM fetch_status WHERE key = 'last_refresh'").first();
+  const failedRow = await db.prepare("SELECT * FROM fetch_status WHERE key = 'failed_platforms'").first();
   return {
     last_refresh: row?.value || "",
+    failed_platforms: failedRow?.value ? JSON.parse(failedRow.value) : [],
   };
 }
 
 export async function updateStatus(db: D1Database, failed: string[]): Promise<void> {
-  await db.prepare(`INSERT OR REPLACE INTO fetch_status (key, value) VALUES ('last_refresh', ?)`).bind(new Date().toISOString()).run();
+  // 🟡 修复：同时保存失败平台列表
+  const now = new Date().toISOString();
+  await db.batch([
+    db.prepare(`INSERT OR REPLACE INTO fetch_status (key, value) VALUES ('last_refresh', ?)`).bind(now),
+    db.prepare(`INSERT OR REPLACE INTO fetch_status (key, value) VALUES ('failed_platforms', ?)`).bind(JSON.stringify(failed)),
+  ]);
 }

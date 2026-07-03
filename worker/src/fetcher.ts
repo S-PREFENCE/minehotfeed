@@ -19,6 +19,19 @@ export interface HotspotItem {
 
 // ============ 工具函数 ============
 
+// 🔴 修复：Cloudflare Workers 的标准 fetch() 不支持 timeout 选项
+// 使用 AbortController + setTimeout 实现超时控制
+function fetchWithTimeout(
+  url: string | Request,
+  options: RequestInit & { timeoutMs?: number } = {}
+): Promise<Response> {
+  const { timeoutMs = 15000, ...init } = options;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...init, signal: controller.signal })
+    .finally(() => clearTimeout(timer));
+}
+
 function parseHeat(raw: unknown): number {
   if (typeof raw === "number") return raw;
   if (typeof raw !== "string") return 0;
@@ -44,7 +57,8 @@ async function fetchDomestic(
   const url = `${UAPIS_BASE}?type=${platformKey}`;
 
   try {
-    const res = await fetch(url, { timeout: 15000 });
+    // 🔴 修复：使用 fetchWithTimeout 替代不支持的 { timeout }
+    const res = await fetchWithTimeout(url, { timeoutMs: 15000 });
     if (!res.ok) return [];
     const data = await res.json();
 
@@ -55,8 +69,11 @@ async function fetchDomestic(
       [];
     if (!Array.isArray(items)) return [];
 
+    // 🟢 改进：添加字段校验确保数据结构正确
     return items
-      .filter((item: Record<string, unknown>) => item.title?.trim())
+      .filter((item: Record<string, unknown>) =>
+        typeof item.title === "string" && item.title.trim()
+      )
       .map((item: Record<string, unknown>, idx: number) => ({
         platform: name,
         region: "domestic",
@@ -84,7 +101,8 @@ async function fetchRSS(
   const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}`;
 
   try {
-    const res = await fetch(proxyUrl, { timeout: 20000 });
+    // 🔴 修复：使用 fetchWithTimeout
+    const res = await fetchWithTimeout(proxyUrl, { timeoutMs: 20000 });
     if (!res.ok) return [];
     const data = await res.json();
     if (data.status !== "ok" || !data.items?.length) return [];
@@ -111,9 +129,10 @@ async function fetchRSS(
 
 async function fetchReddit(): Promise<HotspotItem[]> {
   try {
-    const res = await fetch(REDDIT_URL, {
+    // 🔴 修复：使用 fetchWithTimeout
+    const res = await fetchWithTimeout(REDDIT_URL, {
       headers: { "User-Agent": "HotFeed/1.0" },
-      timeout: 15000,
+      timeoutMs: 15000,
     });
     if (!res.ok) return [];
     const data = await res.json();
@@ -152,6 +171,9 @@ async function fetchReddit(): Promise<HotspotItem[]> {
 }
 
 // ============ 全量抓取 ============
+// 🟡 优化：并发抓取（带信号量控制），减少 Cron 总耗时
+
+const CONCURRENCY_LIMIT = 3; // 同时最多3个请求，避免触发429
 
 export async function fetchAll(): Promise<{
   domestic: HotspotItem[];
@@ -162,19 +184,33 @@ export async function fetchAll(): Promise<{
   const international: HotspotItem[] = [];
   const failed: string[] = [];
 
-  // 国内平台 — 串行抓取避免限流
-  for (const key of Object.keys(DOMESTIC_PLATFORMS)) {
-    const items = await fetchDomestic(key);
-    if (items.length > 0) {
-      domestic.push(...items);
-    } else {
-      failed.push(DOMESTIC_PLATFORMS[key]);
-    }
-    // 平台间延迟防429
-    await new Promise((r) => setTimeout(r, 500));
+  // ———— 国内平台：分批并发 ———
+  const domesticKeys = Object.keys(DOMESTIC_PLATFORMS);
+
+  async function fetchBatch(keys: string[]): Promise<void> {
+    const results = await Promise.allSettled(
+      keys.map((key) => fetchDomestic(key))
+    );
+    results.forEach((r, i) => {
+      const key = keys[i];
+      if (r.status === "fulfilled" && r.value.length > 0) {
+        domestic.push(...r.value);
+      } else {
+        failed.push(DOMESTIC_PLATFORMS[key]);
+      }
+    });
   }
 
-  // 人民日报 RSS
+  for (let i = 0; i < domesticKeys.length; i += CONCURRENCY_LIMIT) {
+    const batch = domesticKeys.slice(i, i + CONCURRENCY_LIMIT);
+    await fetchBatch(batch);
+    // 批次间短暂延迟防限流
+    if (i + CONCURRENCY_LIMIT < domesticKeys.length) {
+      await new Promise((r) => setTimeout(r, 300));
+    }
+  }
+
+  // ———— 人民日报 RSS（国内区域）————
   const people = await fetchRSS("people");
   if (people.length > 0) {
     domestic.push(...people);
@@ -182,24 +218,29 @@ export async function fetchAll(): Promise<{
     failed.push("人民日报");
   }
 
-  // 国际 RSS（排除人民日报）
-  for (const key of Object.keys(RSS_FEEDS)) {
-    if (key === "people") continue;
-    const items = await fetchRSS(key);
-    if (items.length > 0) {
-      international.push(...items);
-    } else {
-      failed.push(RSS_FEEDS[key].name);
-    }
-  }
+  // ———— 国际源：RSS + Reddit 全部并发 ———
+  const intlTasks: Promise<HotspotItem[]>[] = [
+    ...Object.keys(RSS_FEEDS)
+      .filter((k) => k !== "people")
+      .map((key) => fetchRSS(key)),
+    fetchReddit(),
+  ];
 
-  // Reddit
-  const redditItems = await fetchReddit();
-  if (redditItems.length > 0) {
-    international.push(...redditItems);
-  } else {
-    failed.push("Reddit");
-  }
+  const intlNames: string[] = [
+    ...Object.keys(RSS_FEEDS)
+      .filter((k) => k !== "people")
+      .map((key) => RSS_FEEDS[key].name),
+    "Reddit",
+  ];
+
+  const intlResults = await Promise.allSettled(intlTasks);
+  intlResults.forEach((r, i) => {
+    if (r.status === "fulfilled" && r.value.length > 0) {
+      international.push(...r.value);
+    } else {
+      failed.push(intlNames[i]);
+    }
+  });
 
   return { domestic, international, failed };
 }

@@ -64,9 +64,13 @@ function normalizeByPlatform(items: HotspotItem[]): void {
   }
 
   for (const [platform, group] of Object.entries(groups)) {
+    // 🟡 修复：空数组保护，避免 Math.min/max 返回 Infinity
+    if (group.length === 0) continue;
     const heats = group.map((g) => g.originalHeat);
     const minH = Math.min(...heats);
     const maxH = Math.max(...heats);
+    // 🟡 修复：非有限值保护
+    if (!isFinite(minH) || !isFinite(maxH)) continue;
     for (const item of group) {
       item.originalHeat =
         maxH === minH
@@ -125,7 +129,8 @@ export function deduplicate(
     const secondary = cluster[1];
 
     results.push({
-      id: `d_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      // 🟢 改进：使用 crypto.randomUUID() 替代 Date.now + Math.random
+      id: crypto.randomUUID(),
       title: primary.title,
       subtitle: secondary?.title !== primary.title ? (secondary?.title || "") : "",
       unifiedHeat: Math.round(primary.originalHeat * 10) / 10,
