@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HotFeed v3 预览 — 优化效果展示</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
+
+        :root {
+            /* 提亮的背景 — 更通透 */
+            --surface: oklch(99% 0.003 250);
+            --surface-alt: oklch(100% 0 0);
+            --surface-hover: oklch(96% 0.005 250);
+            --border: oklch(92% 0.008 250);
+            --border-light: oklch(95% 0.005 250);
+
+            --text-primary: oklch(12% 0.01 250);
+            --text-secondary: oklch(38% 0.01 250);
+            --text-tertiary: oklch(52% 0.01 250);
+            --text-muted: oklch(68% 0.008 250);
+
+            --brand: oklch(52% 0.20 255);
+            --brand-light: oklch(88% 0.06 255);
+            --brand-dark: oklch(32% 0.16 255);
+
+            /* 分类色 — 低饱和 */
+            --cat-tech: oklch(55% 0.14 255);      /* 科技蓝 */
+            --cat-tech-bg: oklch(94% 0.03 255);
+            --cat-ent: oklch(55% 0.15 300);       /* 娱乐紫 */
+            --cat-ent-bg: oklch(94% 0.03 300);
+            --cat-finance: oklch(52% 0.13 145);   /* 财经绿 */
+            --cat-finance-bg: oklch(94% 0.03 145);
+            --cat-sports: oklch(58% 0.16 45);     /* 体育橙 */
+            --cat-sports-bg: oklch(94% 0.03 45);
+            --cat-society: oklch(50% 0.12 200);   /* 社会青 */
+            --cat-society-bg: oklch(94% 0.03 200);
+
+            --red: oklch(52% 0.22 25);
+            --red-bg: oklch(94% 0.04 25);
+            --orange: oklch(58% 0.18 55);
+            --orange-bg: oklch(94% 0.04 55);
+            --green: oklch(52% 0.16 145);
+
+            --shadow-default: 0 1px 2px oklch(0% 0 0 / 0.03);
+            --shadow-hover: 0 4px 16px oklch(0% 0 0 / 0.08);
+
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+            --max-width: 1200px;
+        }
+
+        .dark {
+            --surface: oklch(16% 0.006 250);
+            --surface-alt: oklch(19% 0.008 250);
+            --surface-hover: oklch(23% 0.01 250);
+            --border: oklch(28% 0.01 250);
+            --border-light: oklch(24% 0.008 250);
+            --text-primary: oklch(93% 0.005 250);
+            --text-secondary: oklch(72% 0.008 250);
+            --text-tertiary: oklch(55% 0.01 250);
+            --text-muted: oklch(42% 0.008 250);
+            --cat-tech-bg: oklch(25% 0.04 255);
+            --cat-ent-bg: oklch(25% 0.04 300);
+            --cat-finance-bg: oklch(25% 0.04 145);
+            --cat-sports-bg: oklch(25% 0.04 45);
+            --cat-society-bg: oklch(25% 0.04 200);
+            --red-bg: oklch(25% 0.05 25);
+            --orange-bg: oklch(25% 0.04 55);
+            --shadow-default: 0 1px 2px oklch(0% 0 0 / 0.2);
+            --shadow-hover: 0 4px 16px oklch(0% 0 0 / 0.4);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; scroll-behavior: smooth; }
+        body {
+            font-family: 'DM Sans', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+            font-size: 14px; line-height: 1.6; color: var(--text-primary);
+            background: var(--surface); transition: background 0.3s var(--ease-out), color 0.3s var(--ease-out);
+        }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100;
+            background: oklch(99% 0.003 250 / 0.85);
+            backdrop-filter: blur(16px) saturate(180%); -webkit-backdrop-filter: blur(16px) saturate(180%);
+            border-bottom: 1px solid var(--border-light);
+        }
+        .dark .header { background: oklch(16% 0.006 250 / 0.88); }
+        .header-inner { max-width: var(--max-width); margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 56px; gap: 24px; }
+        .logo-group { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+        .logo-mark { width: 32px; height: 32px; background: var(--brand); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: #fff; }
+        .logo-text { font-weight: 600; font-size: 18px; letter-spacing: -0.3px; }
+        .logo-sub { font-size: 11px; color: var(--text-tertiary); }
+        .search-wrap { flex: 1; max-width: 380px; position: relative; }
+        .search-wrap svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted); }
+        .search-input { width: 100%; height: 36px; padding: 0 16px 0 36px; background: var(--surface-hover); border: 1px solid transparent; border-radius: 18px; font-size: 13px; font-family: inherit; color: var(--text-primary); outline: none; transition: all 0.2s var(--ease-out); }
+        .search-input:focus { background: var(--surface-alt); border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-light); }
+        .header-actions { display: flex; align-items: center; gap: 8px; }
+        .refresh-dot { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+        .refresh-dot::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+        .btn-icon { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border: none; border-radius: 6px; background: transparent; color: var(--text-secondary); cursor: pointer; transition: all 0.15s var(--ease-out); }
+        .btn-icon:hover { background: var(--surface-hover); color: var(--text-primary); }
+
+        /* Filter Bar */
+        .filter-bar { position: sticky; top: 56px; z-index: 90; background: var(--surface); border-bottom: 1px solid var(--border-light); }
+        .filter-inner { max-width: var(--max-width); margin: 0 auto; padding: 10px 24px; display: flex; align-items: center; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+        .filter-inner::-webkit-scrollbar { display: none; }
+        .filter-pill { display: flex; align-items: center; gap: 5px; padding: 5px 14px; border: 1px solid var(--border); border-radius: 20px; font-size: 13px; font-weight: 500; color: var(--text-secondary); background: transparent; cursor: pointer; white-space: nowrap; transition: all 0.2s var(--ease-out); font-family: inherit; }
+        .filter-pill:hover { border-color: var(--brand); color: var(--brand); }
+        .filter-pill.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+        .filter-pill .dot { width: 8px; height: 8px; border-radius: 50%; }
+        .dot-tech { background: var(--cat-tech); }
+        .dot-ent { background: var(--cat-ent); }
+        .dot-finance { background: var(--cat-finance); }
+        .dot-sports { background: var(--cat-sports); }
+        .dot-society { background: var(--cat-society); }
+
+        /* Main */
+        .main-content { max-width: var(--max-width); margin: 0 auto; padding: 24px 24px 80px; }
+        .feed-grid { display: grid; grid-template-columns: 1fr; gap: 32px; }
+        @media (min-width: 900px) { .feed-grid { grid-template-columns: 1fr 1fr; gap: 28px; } }
+
+        /* Section Header with 装饰条 */
+        .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid var(--border-light); position: relative; }
+        .section-header::before { content: ''; position: absolute; left: -24px; top: 0; bottom: 12px; width: 3px; border-radius: 0 2px 2px 0; }
+        .section-header.domestic::before { background: var(--red); }
+        .section-header.international::before { background: var(--brand); }
+        .section-flag { font-size: 1.3rem; line-height: 1; width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .section-flag.domestic { background: var(--red-bg); }
+        .section-flag.international { background: var(--brand-light); }
+        .section-title { font-size: 17px; font-weight: 600; letter-spacing: -0.2px; }
+        .section-count { font-size: 11px; font-weight: 500; color: var(--text-muted); background: var(--surface-hover); padding: 2px 10px; border-radius: 10px; }
+
+        /* Cards List */
+        .cards-list { display: flex; flex-direction: column; gap: 8px; }
+
+        /* Hot Card — 优化版 */
+        .hot-card {
+            display: flex; align-items: flex-start; gap: 12px;
+            padding: 12px 16px;
+            background: var(--surface-alt);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            cursor: pointer; position: relative;
+            box-shadow: var(--shadow-default);
+            transition: all 0.2s var(--ease-out);
+        }
+        .hot-card:hover { border-color: var(--border); box-shadow: var(--shadow-hover); transform: translateY(-1px); }
+        .hot-card:active { transform: scale(0.995); }
+
+        /* 左侧分类色条 */
+        .hot-card::before { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 2px; border-radius: 0 1px 1px 0; opacity: 0; transition: opacity 0.2s var(--ease-out); }
+        .hot-card:hover::before { opacity: 1; }
+        .hot-card[data-cat="tech"]::before { background: var(--cat-tech); }
+        .hot-card[data-cat="entertainment"]::before { background: var(--cat-ent); }
+        .hot-card[data-cat="finance"]::before { background: var(--cat-finance); }
+        .hot-card[data-cat="sports"]::before { background: var(--cat-sports); }
+        .hot-card[data-cat="society"]::before { background: var(--cat-society); }
+
+        /* Rank Badge */
+        .card-rank { width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; transition: all 0.2s var(--ease-out); color: var(--text-tertiary); background: var(--surface-hover); }
+        .card-rank.top1 { background: var(--brand); color: #fff; }
+        .card-rank.top2 { background: var(--brand-light); color: var(--brand-dark); }
+        .card-rank.top3 { background: oklch(90% 0.04 255); color: var(--brand-dark); }
+
+        .card-body { flex: 1; min-width: 0; }
+        .card-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+        .card-trend { font-size: 12px; font-weight: 600; }
+        .card-trend.up { color: var(--red); }
+        .card-trend.down { color: var(--brand); }
+        .card-trend.stable { color: var(--text-muted); }
+        .card-tag { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; letter-spacing: 0.3px; }
+        .card-tag.boom { background: var(--red-bg); color: var(--red); }
+        .card-tag.hot { background: var(--orange-bg); color: var(--orange); }
+
+        .card-title { font-size: 14px; font-weight: 600; color: var(--text-primary); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 2px; letter-spacing: -0.1px; }
+        .card-subtitle { font-size: 12px; color: var(--text-tertiary); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 8px; }
+
+        /* 元信息行：logo + 平台名 · 热度 · 时间 */
+        .card-footer { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .platform-badge { display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; color: var(--text-secondary); }
+        .platform-logo { width: 16px; height: 16px; border-radius: 3px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #fff; }
+        .logo-weibo { background: #E6162D; }
+        .logo-douyin { background: #000; }
+        .logo-baidu { background: #2932E1; }
+        .logo-zhihu { background: #0084FF; }
+        .logo-toutiao { background: #F04142; }
+        .logo-bilibili { background: #FB7299; }
+        .logo-kuaishou { background: #FF4906; }
+        .logo-xiaohongshu { background: #FF2442; }
+        .logo-tencent { background: #1479D7; }
+        .logo-netease { background: #DA251D; }
+        .logo-hupu { background: #ED5B27; }
+        .logo-google { background: #4285F4; }
+        .logo-reddit { background: #FF4500; }
+        .logo-bbc { background: #BB1919; }
+        .logo-cnn { background: #CC0000; }
+        .logo-youtube { background: #FF0000; }
+
+        .card-sep { color: var(--text-muted); font-size: 11px; }
+        .card-heat { font-size: 12px; color: var(--text-tertiary); display: flex; align-items: center; gap: 3px; }
+        .card-spark { display: inline-flex; align-items: center; }
+        .card-spark svg { width: 12px; height: 12px; color: var(--orange); }
+        @keyframes flicker { 0%,100% { opacity: 0.7; transform: scale(1); } 50% { opacity: 1; transform: scale(1.15); } }
+        .card-spark.animate svg { animation: flicker 1.2s ease-in-out infinite; }
+        .card-time { font-size: 11px; color: var(--text-muted); }
+        .card-multi { font-size: 11px; color: var(--brand); display: flex; align-items: center; gap: 3px; font-weight: 500; }
+        .card-multi svg { width: 11px; height: 11px; }
+
+        .card-arrow { color: var(--text-muted); flex-shrink: 0; opacity: 0; transform: translateX(-4px); transition: all 0.2s var(--ease-out); margin-top: 5px; }
+        .hot-card:hover .card-arrow { opacity: 1; transform: translateX(0); }
+
+        /* Annotation labels for preview */
+        .annotation { position: absolute; right: -8px; top: -8px; background: var(--brand); color: #fff; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px; transform: rotate(8deg); pointer-events: none; z-index: 10; }
+
+        /* Footer */
+        .footer { border-top: 1px solid var(--border-light); padding: 20px; text-align: center; font-size: 12px; color: var(--text-muted); }
+        .footer-inner { max-width: var(--max-width); margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; }
+
+        /* Mobile tabs */
+        .mobile-tabs { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: oklch(99% 0.003 250 / 0.9); backdrop-filter: blur(16px) saturate(180%); -webkit-backdrop-filter: blur(16px) saturate(180%); border-top: 1px solid var(--border-light); z-index: 100; padding: 6px 0; padding-bottom: max(6px, env(safe-area-inset-bottom)); }
+        .dark .mobile-tabs { background: oklch(16% 0.006 250 / 0.9); }
+        @media (max-width: 899px) { .mobile-tabs { display: flex; } }
+        .mobile-tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px; border: none; background: transparent; cursor: pointer; color: var(--text-muted); font-family: inherit; font-size: 10px; font-weight: 500; }
+        .mobile-tab.active { color: var(--brand); }
+        .mobile-tab .flag { font-size: 1.1rem; line-height: 1; }
+
+        /* Card entrance */
+        @keyframes cardIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .hot-card { animation: cardIn 0.4s var(--ease-out) both; }
+
+        /* Dark toggle */
+        .theme-btn { position: fixed; bottom: 20px; right: 20px; width: 40px; height: 40px; border-radius: 50%; background: var(--surface-alt); border: 1px solid var(--border); box-shadow: var(--shadow-hover); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 200; transition: all 0.2s var(--ease-out); }
+        .theme-btn:hover { transform: scale(1.08); }
+    </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+    <div class="header-inner">
+        <div class="logo-group">
+            <div class="logo-mark">H</div>
+            <div>
+                <div class="logo-text">HotFeed</div>
+                <div class="logo-sub">全球热点，一站掌握</div>
+            </div>
+        </div>
+        <div class="search-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input class="search-input" type="text" placeholder="搜索热点关键词…">
+        </div>
+        <div class="header-actions">
+            <span class="refresh-dot">3 分钟前更新</span>
+            <button class="btn-icon" onclick="document.documentElement.classList.toggle('dark')">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            </button>
+        </div>
+    </div>
+</header>
+
+<!-- Filter Bar -->
+<nav class="filter-bar">
+    <div class="filter-inner">
+        <button class="filter-pill active">全部</button>
+        <button class="filter-pill"><span class="dot dot-tech"></span>科技</button>
+        <button class="filter-pill"><span class="dot dot-ent"></span>娱乐</button>
+        <button class="filter-pill"><span class="dot dot-finance"></span>财经</button>
+        <button class="filter-pill"><span class="dot dot-sports"></span>体育</button>
+        <button class="filter-pill"><span class="dot dot-society"></span>社会</button>
+    </div>
+</nav>
+
+<!-- Main -->
+<main class="main-content">
+    <div class="feed-grid">
+        <!-- Domestic -->
+        <section>
+            <div class="section-header domestic">
+                <div class="section-flag domestic">🇨🇳</div>
+                <h2 class="section-title">国内头条</h2>
+                <span class="section-count">50 条</span>
+            </div>
+            <div class="cards-list" id="domesticList"></div>
+        </section>
+
+        <!-- International -->
+        <section>
+            <div class="section-header international">
+                <div class="section-flag international">🌍</div>
+                <h2 class="section-title">国际头条</h2>
+                <span class="section-count">50 条</span>
+            </div>
+            <div class="cards-list" id="internationalList"></div>
+        </section>
+    </div>
+</main>
+
+<!-- Footer -->
+<footer class="footer">
+    <div class="footer-inner">
+        <span>HotFeed © 2025</span>
+        <span>数据来源：微博 · 抖音 · 百度 · 知乎 · 头条 · B站 · Reddit · BBC · CNN</span>
+        <span>每 10 分钟更新 · 数据保留 5 天</span>
+    </div>
+</footer>
+
+<!-- Mobile Tabs -->
+<nav class="mobile-tabs">
+    <button class="mobile-tab active"><span class="flag">🇨🇳</span>国内头条</button>
+    <button class="mobile-tab"><span class="flag">🌍</span>国际头条</button>
+</nav>
+
+<!-- Theme toggle floating -->
+<button class="theme-btn" onclick="document.documentElement.classList.toggle('dark')" title="切换深色">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+</button>
+
+<script>
+const domesticData = [
+    { rank:1, title:"花少8阵容真的好强大，多位明星确认加盟新一季", subtitle:"节目组官宣定档下月开播，嘉宾名单引发热议", heat:841674, platform:"weibo", platformName:"微博", platforms:3, trend:"up", cat:"entertainment", tags:["爆"], time:"5分钟前" },
+    { rank:2, title:"华为发布新一代麒麟芯片，性能提升200%引发全球关注", subtitle:"Mate 80系列首发搭载，或将重新定义移动计算", heat:756000, platform:"baidu", platformName:"百度", platforms:3, trend:"up", cat:"tech", tags:["热"], time:"12分钟前" },
+    { rank:3, title:"A股三大指数集体大涨，沪指突破3500点创年内新高", subtitle:"政策利好叠加外资回流，两市成交额突破2万亿", heat:632000, platform:"toutiao", platformName:"头条", platforms:2, trend:"up", cat:"finance", tags:[], time:"18分钟前" },
+    { rank:4, title:"中国女足亚洲杯逆转夺冠，全国球迷彻夜狂欢庆祝", subtitle:"决赛加时绝杀日本队，时隔16年重返亚洲之巅", heat:521000, platform:"douyin", platformName:"抖音", platforms:3, trend:"stable", cat:"sports", tags:["热"], time:"25分钟前" },
+    { rank:5, title:"某省发生6.5级地震，救援力量第一时间赶赴灾区", subtitle:"已启动二级应急响应，暂无重大伤亡报告", heat:498000, platform:"baidu", platformName:"百度", platforms:3, trend:"down", cat:"society", tags:[], time:"32分钟前" },
+    { rank:6, title:"《黑神话：悟空2》正式官宣，首支预告片24小时播放破亿", subtitle:"游戏科学确认登陆全平台，预计2027年发售", heat:435000, platform:"bilibili", platformName:"B站", platforms:3, trend:"up", cat:"entertainment", tags:["新"], time:"45分钟前" },
+    { rank:7, title:"央行宣布全面降准0.5个百分点，释放长期资金约1万亿元", subtitle:"分析人士认为此举意在稳定市场预期，支持实体经济", heat:412000, platform:"toutiao", platformName:"头条", platforms:2, trend:"stable", cat:"finance", tags:[], time:"1小时前" },
+    { rank:8, title:"2025年高考成绩公布，各省本科分数线较去年普遍上涨", subtitle:"AI相关专业报考热度飙升，录取位次大幅前移", heat:389000, platform:"zhihu", platformName:"知乎", platforms:2, trend:"up", cat:"society", tags:[], time:"1小时前" },
+];
+
+const internationalData = [
+    { rank:1, title:"Fed Signals September Rate Cut, Global Markets Surge", subtitle:"Powell cites cooling inflation and labor market softening as key factors", heat:2300000, platform:"google", platformName:"Google", platforms:2, trend:"up", cat:"finance", tags:["Trending"], time:"8 minutes ago" },
+    { rank:2, title:"LA 2028 Olympics: Inside the Most Ambitious Games Ever Planned", subtitle:"$7B infrastructure overhaul promises to transform Southern California", heat:1800000, platform:"bbc", platformName:"BBC", platforms:3, trend:"up", cat:"sports", tags:[], time:"20 minutes ago" },
+    { rank:3, title:"New AI Model Achieves Human-Level Scientific Reasoning in Blind Test", subtitle:"Researchers stunned as model solves novel physics problems without training", heat:1600000, platform:"reddit", platformName:"Reddit", platforms:2, trend:"up", cat:"tech", tags:["Hot"], time:"35 minutes ago" },
+    { rank:4, title:"COP30: 195 Nations Sign Historic Carbon Reduction Pact", subtitle:"Agreement includes binding enforcement mechanism for the first time", heat:1400000, platform:"bbc", platformName:"BBC", platforms:2, trend:"stable", cat:"society", tags:[], time:"1 hour ago" },
+    { rank:5, title:"Apple Unveils Vision AR Glasses: 'This Is the Next iPhone Moment'", subtitle:"Lightweight design, all-day battery, and seamless iOS integration at $799", heat:1100000, platform:"reddit", platformName:"Reddit", platforms:3, trend:"up", cat:"tech", tags:["New"], time:"2 hours ago" },
+    { rank:6, title:"7.2 Magnitude Earthquake Strikes Japan's Pacific Coast", subtitle:"Tsunami advisory issued; early warning system credited with saving lives", heat:980000, platform:"cnn", platformName:"CNN", platforms:3, trend:"down", cat:"society", tags:[], time:"3 hours ago" },
+    { rank:7, title:"Euro 2028 Qualifier: England vs France Sets All-Time Viewing Record", subtitle:"Peak audience of 450M worldwide as Bellingham scores hat-trick", heat:850000, platform:"bbc", platformName:"BBC", platforms:2, trend:"up", cat:"sports", tags:[], time:"4 hours ago" },
+    { rank:8, title:"SpaceX Starship Completes Full Mars Mission Simulation in Orbit", subtitle:"Six-month test validates life support, radiation shielding, and ISRU systems", heat:720000, platform:"youtube", platformName:"YouTube", platforms:3, trend:"up", cat:"tech", tags:[], time:"5 hours ago" },
+];
+
+function formatHeat(heat) {
+    if (heat >= 100000000) return (heat / 100000000).toFixed(1) + '亿';
+    if (heat >= 10000) return (heat / 10000).toFixed(1) + '万';
+    return heat.toString();
+}
+
+const trendMap = { up: '↗', down: '↘', stable: '→' };
+const tagMap = { '爆': 'boom', '热': 'hot', 'Hot': 'hot', 'Trending': 'hot', '新': 'boom', 'New': 'boom' };
+
+function createCard(item, i) {
+    const rankClass = item.rank === 1 ? 'top1' : item.rank === 2 ? 'top2' : item.rank === 3 ? 'top3' : '';
+    const tags = (item.tags || []).map(t => `<span class="card-tag ${tagMap[t] || 'hot'}">${t}</span>`).join('');
+    const multi = item.platforms > 1
+        ? `<span class="card-multi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>等 ${item.platforms} 平台</span>` : '';
+    const showSpark = item.rank <= 3;
+
+    // 平台 logo — 首字母色块
+    const logoLetter = item.platformName.charAt(0).toUpperCase();
+
+    return `
+    <div class="hot-card" data-cat="${item.cat}" style="animation-delay:${i * 0.04}s">
+        <div class="card-rank ${rankClass}">${item.rank}</div>
+        <div class="card-body">
+            <div class="card-meta">
+                <span class="card-trend ${item.trend}">${trendMap[item.trend]}</span>
+                ${tags ? `<span style="display:flex;gap:4px">${tags}</span>` : ''}
+            </div>
+            <div class="card-title">${item.title}</div>
+            <div class="card-subtitle">${item.subtitle}</div>
+            <div class="card-footer">
+                <span class="platform-badge">
+                    <span class="platform-logo logo-${item.platform}">${logoLetter}</span>
+                    ${item.platformName}
+                </span>
+                <span class="card-sep">·</span>
+                <span class="card-heat">
+                    <span class="card-spark ${showSpark ? 'animate' : ''}">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L10.5 8.5H4L9 13L6.5 19.5L13 15L19.5 19.5L17 13L22 8.5H15.5L13 2Z"/></svg>
+                    </span>
+                    ${formatHeat(item.heat)} 热度
+                </span>
+                <span class="card-sep">·</span>
+                <span class="card-time">${item.time}</span>
+                ${multi}
+            </div>
+        </div>
+        <svg class="card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+    </div>`;
+}
+
+document.getElementById('domesticList').innerHTML = domesticData.map((d,i) => createCard(d,i)).join('');
+document.getElementById('internationalList').innerHTML = internationalData.map((d,i) => createCard(d,i)).join('');
+</script>
+</body>
+</html>
