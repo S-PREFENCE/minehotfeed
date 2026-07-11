@@ -2,8 +2,8 @@ import { ref, onMounted, onUnmounted } from 'vue'
 
 const POLL_INTERVAL = 10 * 60 * 1000 // 10 minutes
 
-// API 地址：Cloudflare Workers 同域（前端 Pages + 后端 Worker 绑定同域名）
-const API_BASE = import.meta.env.VITE_API_BASE || '/api'
+// API 地址：Cloudflare Workers（硬编码，GitHub Pages 不支持 import.meta.env）
+const API_BASE = 'https://hotfeed-backend.2628944969.workers.dev/api'
 
 export function useHotspots() {
   const domestic = ref([])
